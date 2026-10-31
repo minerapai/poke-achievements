@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "pokeachv",
+  "version": "${version}",
+  "name": "Poke Achievements",
+  "description": "Server side achievements (pokedex, gyms and leagues, catches, shinies, eggs, battles, raids) that give items for raising competitive pokemon, CobbleDollars and a chat title. /achv lists them. Clients do not need this mod.",
+  "license": "MIT",
+  "environment": "server",
+  "entrypoints": {
+    "main": [
+      "kr.pokeachv.PokeAchievements"
+    ]
+  },
+  "mixins": [
+    "pokeachv.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": "1.21.1",
+    "fabric-api": "*",
+    "cobblemon": ">=1.7.0",
+    "rctmod": "*"
+  }
+}
