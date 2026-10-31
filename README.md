@@ -13,6 +13,13 @@
 
 받은 jar 파일을 마인크래프트(또는 서버) 폴더의 `mods` 폴더에 넣으면 됩니다. 다른 버전은 [Releases](https://github.com/minerapai/poke-achievements/releases) 에 있습니다.
 
+## 필요한 데이터팩
+
+| 데이터팩 | 없으면 |
+|---|---|
+| **COBBLEVERSE-RCT-DP** (COBBLEVERSE 모드팩에 들어 있음) | 관동~신오 체육관, 리그 업적을 달성할 수 없습니다. |
+| **[Unova-Paldea Leaders](https://github.com/minerapai/unova-paldea-leaders)** (따로 설치) | 하나~팔데아 관련 업적(지방별 챔피언, 9지방 정복, 내 트레이너의 하나~팔데아 단계)을 달성할 수 없습니다. 나머지 업적은 그대로 쓸 수 있습니다. |
+
 ## 기능
 
 - 도감, 체육관/리그, 포획, 이로치, 알, 배틀, 레이드 업적
