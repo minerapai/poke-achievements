@@ -14,6 +14,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.stat.Stats;
 import net.minecraft.util.Identifier;
 
+import java.util.List;
 import java.util.Map;
 
 /** Current progress of a player towards an achievement's target (see Achievement for the types). */
@@ -68,6 +69,43 @@ public final class Conditions {
             case "trainer_defeat", "trainer_friendly_wins", "gym_wins", "gym_defenses" -> FabricLoader.getInstance().isModLoaded("poketrainer")
                 ? TrainerRecords.progress(player, achievement.type(), achievement.key()) : 0;
             default -> 0;
+        };
+    }
+
+    /**
+     * The achievements this server can reach: those of a mod, data pack or stat that is not installed are left out, so
+     * the menu does not fill up with achievements nobody can get. Before RCT has loaded its data (it does so after the
+     * server started) its series and trainers count as available.
+     */
+    public static List<Achievement> available(List<Achievement> all) {
+        java.util.Set<String> series = new java.util.HashSet<>(RCTMod.getInstance().getSeriesManager().getSeriesIds());
+        java.util.Set<String> trainers = RCTMod.getInstance().getTrainerManager().getAllData()
+            .map(Map.Entry::getKey).collect(java.util.stream.Collectors.toSet());
+        return all.stream().filter(achievement -> available(achievement, series, trainers)).toList();
+    }
+
+    /** RCT has loaded its series (and trainers), so {@link #available} can tell which of them exist. */
+    public static boolean rctLoaded() {
+        return !RCTMod.getInstance().getSeriesManager().getSeriesIds().isEmpty();
+    }
+
+    private static boolean available(Achievement achievement, java.util.Set<String> series, java.util.Set<String> trainers) {
+        FabricLoader loader = FabricLoader.getInstance();
+        return switch (achievement.type()) {
+            case "stat" -> {
+                Identifier id = Identifier.tryParse(achievement.key());
+                yield id != null && Registries.CUSTOM_STAT.containsId(id);
+            }
+            case "rct_series" -> series.isEmpty() || series.contains(achievement.key());
+            case "rct_all" -> series.isEmpty()
+                || java.util.Arrays.stream(achievement.key().split(",")).map(String::trim).allMatch(series::contains);
+            case "tower_single", "tower_multi", "tower_wins", "tower_hard_single", "tower_hard_multi", "tower_hard_wins" ->
+                loader.isModLoaded("battletower");
+            case "event_legend", "event_legend_box", "event_outbreak", "event_shiny" -> loader.isModLoaded("pokeevents");
+            case "quest_step", "rival_wins" -> loader.isModLoaded("pokequest");
+            case "trainer_defeat" -> loader.isModLoaded("poketrainer") && (trainers.isEmpty() || trainers.contains(achievement.key()));
+            case "trainer_friendly_wins", "gym_wins", "gym_defenses" -> loader.isModLoaded("poketrainer");
+            default -> true;
         };
     }
 

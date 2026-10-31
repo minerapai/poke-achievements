@@ -55,13 +55,15 @@ public class PokeAchievements implements ModInitializer {
     /** Chosen title per online player, read by PlayerDisplayNameMixin for chat. */
     private static final Map<UUID, String> TITLES = new ConcurrentHashMap<>();
 
-    private static List<Achievement> achievements = List.of();
+    /** Every achievement of the config, and those this server can reach (worked out once RCT has its data). */
+    private static List<Achievement> configured = List.of();
+    private static List<Achievement> achievements;
     private static PlayerRecords records;
 
     @Override
     public void onInitialize() {
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
-            achievements = loadConfig();
+            setAchievements(loadConfig());
             records = PlayerRecords.load(server.getSavePath(WorldSavePath.ROOT).resolve("pokeachv-records.json"));
         });
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
@@ -86,14 +88,14 @@ public class PokeAchievements implements ModInitializer {
                         .executes(ctx -> setTitle(ctx.getSource().getPlayerOrThrow(), null)))
                     .then(CommandManager.argument("id", StringArgumentType.word())
                         .suggests((ctx, builder) -> CommandSource.suggestMatching(
-                            achievements.stream().map(Achievement::id), builder))
+                            achievements().stream().map(Achievement::id), builder))
                         .executes(ctx -> setTitle(ctx.getSource().getPlayerOrThrow(),
                             StringArgumentType.getString(ctx, "id")))))
                 .then(CommandManager.literal("reload")
                     .requires(source -> source.hasPermissionLevel(2))
                     .executes(ctx -> {
-                        achievements = loadConfig();
-                        ctx.getSource().sendFeedback(() -> Text.literal("업적 설정을 다시 읽었습니다: " + achievements.size() + "개"), true);
+                        setAchievements(loadConfig());
+                        ctx.getSource().sendFeedback(() -> Text.literal("업적 설정을 다시 읽었습니다: " + achievements().size() + "개"), true);
                         return 1;
                     }))));
     }
@@ -159,7 +161,7 @@ public class PokeAchievements implements ModInitializer {
         Conditions.Dex dex = Conditions.Dex.of(player);
         List<Achievement> reached = new ArrayList<>();
 
-        for (Achievement achievement : achievements) {
+        for (Achievement achievement : achievements()) {
             if (!record.done.contains(achievement.id()) && Conditions.progress(player, achievement, dex) >= achievement.target()) {
                 reached.add(achievement);
             }
@@ -256,7 +258,7 @@ public class PokeAchievements implements ModInitializer {
     }
 
     private static Optional<Achievement> find(String id) {
-        return achievements.stream().filter(a -> a.id().equals(id)).findFirst();
+        return achievements().stream().filter(a -> a.id().equals(id)).findFirst();
     }
 
     // listing
@@ -264,15 +266,15 @@ public class PokeAchievements implements ModInitializer {
     private static int list(ServerPlayerEntity player, int page) {
         PlayerRecords.Record record = records.create(player.getUuid());
         Conditions.Dex dex = Conditions.Dex.of(player);
-        int pages = Math.max(1, (achievements.size() + PAGE_SIZE - 1) / PAGE_SIZE);
+        int pages = Math.max(1, (achievements().size() + PAGE_SIZE - 1) / PAGE_SIZE);
         int shown = Math.min(page, pages);
-        long done = achievements.stream().filter(a -> record.done.contains(a.id())).count();
+        long done = achievements().stream().filter(a -> record.done.contains(a.id())).count();
 
-        player.sendMessage(Text.literal("===== 업적 " + done + "/" + achievements.size() + " (" + shown + "/" + pages + "쪽) =====")
+        player.sendMessage(Text.literal("===== 업적 " + done + "/" + achievements().size() + " (" + shown + "/" + pages + "쪽) =====")
             .formatted(Formatting.GOLD));
 
-        for (Achievement achievement : achievements.subList((shown - 1) * PAGE_SIZE,
-            Math.min(achievements.size(), shown * PAGE_SIZE))) {
+        for (Achievement achievement : achievements().subList((shown - 1) * PAGE_SIZE,
+            Math.min(achievements().size(), shown * PAGE_SIZE))) {
             boolean reached = record.done.contains(achievement.id());
             MutableText line = Text.literal(reached ? "✔ " : "✘ ").formatted(reached ? Formatting.GREEN : Formatting.DARK_GRAY)
                 .append(Text.literal(achievement.name()).formatted(reached ? Formatting.YELLOW : Formatting.GRAY))
@@ -335,8 +337,24 @@ public class PokeAchievements implements ModInitializer {
         return lines;
     }
 
+    private static void setAchievements(List<Achievement> all) {
+        configured = all;
+        achievements = null;
+    }
+
     static List<Achievement> achievements() {
-        return achievements;
+        if (achievements != null) {
+            return achievements;
+        }
+
+        List<Achievement> available = Conditions.available(configured);
+
+        if (Conditions.rctLoaded()) {
+            achievements = available;
+            LOGGER.info("{} of {} achievements available on this server", available.size(), configured.size());
+        }
+
+        return available;
     }
 
     static PlayerRecords.Record record(ServerPlayerEntity player) {
